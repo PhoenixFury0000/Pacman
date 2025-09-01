@@ -21,11 +21,11 @@ export default function App() {
     <div className="app">
       {!started ? (
         <div className="menu">
-          <h1>Pac-Man Mobile</h1>
-          <p className="sub">Touch controls • Swipe to move</p>
-          <p className="high">🏆 High Score: {highScore}</p>
+          <h1>PAC-MAN MOBILE</h1>
+          <p className="sub">SWIPE OR USE BUTTONS TO MOVE</p>
+          <p className="high">🏆 HIGH SCORE: {highScore}</p>
           <button className="primary" onClick={() => setStarted(true)}>
-            Start Game
+            START GAME
           </button>
         </div>
       ) : (
