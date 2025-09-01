@@ -1,23 +1,30 @@
 import express from "express";
-import mongoose from "mongoose";
 import cors from "cors";
-import playerRoutes from "./routes/playerRoutes.js";
 
 const app = express();
-const PORT = 5000;
+const PORT = process.env.PORT || 5000;
 
 app.use(cors());
 app.use(express.json());
 
-// MongoDB connection
-mongoose.connect("mongodb://127.0.0.1:27017/pacmanDB", {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-})
-.then(() => console.log("✅ MongoDB connected"))
-.catch(err => console.error("❌ Mongo Error:", err));
+// in-memory store
+let leaderboard = [];
 
-// Routes
-app.use("/api/players", playerRoutes);
+// get leaderboard
+app.get("/leaderboard", (req, res) => {
+  res.json(leaderboard.sort((a, b) => b.score - a.score).slice(0, 10));
+});
 
-app.listen(PORT, () => console.log(`🚀 Server running on http://localhost:${PORT}`));
+// post score
+app.post("/leaderboard", (req, res) => {
+  const { name, score } = req.body;
+  if (!name || typeof score !== "number") {
+    return res.status(400).json({ error: "Invalid data" });
+  }
+  leaderboard.push({ name, score });
+  res.json({ success: true });
+});
+
+app.listen(PORT, () => {
+  console.log(`✅ Backend running on port ${PORT}`);
+});
