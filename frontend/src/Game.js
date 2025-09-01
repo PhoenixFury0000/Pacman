@@ -1,304 +1,174 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
-import { maps20 } from "./maps";
+import React, { useEffect, useRef, useState } from "react";
 
-/**
- * Cell legend:
- * W = Wall
- * . = Dot
- * o = Power potion
- * P = Player start
- * G = Ghost start
- * ' ' = Empty
- */
+// 🎮 Tile size and map setup
+const TILE_SIZE = 24;
 
-const CELL_MS = 120;         // player step speed
-const GHOST_MS = 380;        // ghost step speed
-const POWER_TIME = 5000;     // 5s power mode
+// Simple map: 0 = empty, 1 = wall, 2 = pellet
+const map = [
+  [1,1,1,1,1,1,1,1,1,1,1,1],
+  [1,2,2,2,2,2,2,2,2,2,2,1],
+  [1,2,1,1,2,1,1,1,1,1,2,1],
+  [1,2,2,2,2,2,2,2,2,2,2,1],
+  [1,2,1,1,2,1,1,1,1,1,2,1],
+  [1,2,2,2,2,2,2,2,2,2,2,1],
+  [1,1,1,1,1,1,1,1,1,1,1,1],
+];
 
-export default function Game({ onExit, onHighScore }) {
-  const [level, setLevel] = useState(0);
+// API helpers
+async function saveScore(name, score) {
+  await fetch("https://pacman-2.onrender.com/leaderboard", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name, score }),
+  });
+}
+
+async function getLeaderboard() {
+  const res = await fetch("https://pacman-2.onrender.com/leaderboard");
+  return await res.json();
+}
+
+export default function Game() {
+  const canvasRef = useRef(null);
+  const [pacman, setPacman] = useState({ x: 1, y: 1, dir: "RIGHT" });
   const [score, setScore] = useState(0);
-  const [lives, setLives] = useState(3);
-  const [powered, setPowered] = useState(false);
-  const [powerLeft, setPowerLeft] = useState(0);
-  const powerTimerRef = useRef(null);
+  const [gameOver, setGameOver] = useState(false);
+  const [leaderboard, setLeaderboard] = useState([]);
+  const [playerName, setPlayerName] = useState("Player");
 
-  const rawMap = useMemo(() => maps20[level].map(row => row.split("")), [level]);
-
-  // locate P and G from map
-  const findPositions = (grid) => {
-    let player = {x:0,y:0};
-    const ghosts = [];
-    grid.forEach((row, y) => {
-      row.forEach((c, x) => {
-        if (c === "P") player = {x, y};
-        if (c === "G") ghosts.push({x, y});
-      });
-    });
-    return { player, ghosts };
-  };
-
-  const [grid, setGrid] = useState(rawMap);
-  const initPositions = useMemo(() => findPositions(rawMap), [rawMap]);
-  const [player, setPlayer] = useState(initPositions.player);
-  const [ghosts, setGhosts] = useState(initPositions.ghosts);
-
-  // touch swipe detection
-  const touchStart = useRef({x:0,y:0});
-  const [queuedDir, setQueuedDir] = useState(null);
-
-  const width = grid[0].length;
-  const height = grid.length;
-
-  const canMove = (x, y) => {
-    if (x < 0 || y < 0 || x >= width || y >= height) return false;
-    return grid[y][x] !== "W";
-  };
-
-  // consume item at cell
-  const eatCell = (x, y) => {
-    const c = grid[y][x];
-    if (c === "." || c === "o" || c === "P" || c === "G" || c === " ") return c;
-    return c;
-  };
-
-  // handle power mode
-  const startPower = () => {
-    clearInterval(powerTimerRef.current);
-    setPowered(true);
-    setPowerLeft(POWER_TIME);
-    const t0 = Date.now();
-    powerTimerRef.current = setInterval(() => {
-      const left = Math.max(0, POWER_TIME - (Date.now() - t0));
-      setPowerLeft(left);
-      if (left <= 0) {
-        clearInterval(powerTimerRef.current);
-        setPowered(false);
-      }
-    }, 100);
-  };
-
-  // step player by direction
-  const stepPlayer = (dir) => {
-    if (!dir) return;
-    const d = {up:[0,-1],down:[0,1],left:[-1,0],right:[1,0]}[dir];
-    const nx = player.x + d[0], ny = player.y + d[1];
-    if (!canMove(nx, ny)) return;
-
-    const nextCell = grid[ny][nx];
-    // mutate a copy
-    const g2 = grid.map(r=>r.slice());
-    // clear start markers visually
-    if (g2[player.y][player.x] === "P") g2[player.y][player.x] = " ";
-    if (nextCell === ".") setScore(s=>s+10);
-    if (nextCell === "o") { setScore(s=>s+50); startPower(); }
-    if (nextCell === "." || nextCell === "o") g2[ny][nx] = " ";
-
-    setGrid(g2);
-    setPlayer({x:nx,y:ny});
-  };
-
-  // queued movement loop (makes buttons/swipes feel smooth)
+  // 🎮 Touch controls
   useEffect(() => {
-    const id = setInterval(() => {
-      if (queuedDir) stepPlayer(queuedDir);
-    }, CELL_MS);
-    return () => clearInterval(id);
-    // eslint-disable-next-line
-  }, [queuedDir, player, grid]);
+    const handleSwipe = (e) => {
+      const { clientX, clientY } = e.changedTouches[0];
+      const { width, height } = window.screen;
 
-  // ghost loop
-  useEffect(() => {
-    const dirs = [
-      {x:0,y:-1, name:"up"},
-      {x:0,y:1,  name:"down"},
-      {x:-1,y:0, name:"left"},
-      {x:1,y:0,  name:"right"}
-    ];
-    const chase = (g) => {
-      // 35% chase toward player else random
-      if (Math.random() < 0.35) {
-        let best = null, bestDist = 1e9;
-        dirs.forEach(d => {
-          const nx = g.x + d.x, ny = g.y + d.y;
-          if (!canMove(nx, ny)) return;
-          const dist = Math.abs(nx - player.x) + Math.abs(ny - player.y);
-          if (dist < bestDist) { bestDist = dist; best = {x:nx,y:ny}; }
-        });
-        return best || g;
-      } else {
-        const shuffled = dirs.sort(()=>Math.random()-0.5);
-        for (const d of shuffled) {
-          const nx = g.x + d.x, ny = g.y + d.y;
-          if (canMove(nx, ny)) return {x:nx,y:ny};
-        }
-        return g;
-      }
+      if (clientX < width / 3) setPacman((p) => ({ ...p, dir: "LEFT" }));
+      else if (clientX > (2 * width) / 3) setPacman((p) => ({ ...p, dir: "RIGHT" }));
+      else if (clientY < height / 2) setPacman((p) => ({ ...p, dir: "UP" }));
+      else setPacman((p) => ({ ...p, dir: "DOWN" }));
     };
 
-    const id = setInterval(() => {
-      setGhosts(prev => {
-        const moved = prev.map(g => chase(g));
-        // collisions
-        let pl = {...player};
-        let lv = lives;
-        let sc = 0;
-        const respawn = initPositions.ghosts[0] || {x:1,y:1};
+    window.addEventListener("touchend", handleSwipe);
+    return () => window.removeEventListener("touchend", handleSwipe);
+  }, []);
 
-        for (let i=0;i<moved.length;i++){
-          const g = moved[i];
-          if (g.x === pl.x && g.y === pl.y) {
-            if (powered) {
-              // eat ghost
-              moved[i] = {...respawn};
-              sc += 200;
-            } else {
-              // lose life
-              if (lv > 1) {
-                lv -= 1;
-                pl = {...initPositions.player};
-                setPlayer(pl);
-                moved[i] = {...respawn};
-              } else {
-                // game over
-                const hs = Number(localStorage.getItem("pacman_highscore")||0);
-                const finalHS = Math.max(hs, score);
-                localStorage.setItem("pacman_highscore", String(finalHS));
-                onHighScore?.(finalHS);
-                alert("💀 Game Over!");
-                // reset all
-                setLevel(0);
-                const m0 = maps20[0].map(r=>r.split(""));
-                setGrid(m0);
-                const p0 = findPositions(m0);
-                setPlayer(p0.player);
-                setGhosts(p0.ghosts);
-                setScore(0);
-                setLives(3);
-                setPowered(false);
-                setQueuedDir(null);
-                return moved;
-              }
-            }
+  // 🎮 Game loop
+  useEffect(() => {
+    if (gameOver) return;
+
+    const interval = setInterval(() => {
+      setPacman((prev) => {
+        let { x, y, dir } = prev;
+        let nx = x, ny = y;
+
+        if (dir === "LEFT") nx--;
+        if (dir === "RIGHT") nx++;
+        if (dir === "UP") ny--;
+        if (dir === "DOWN") ny++;
+
+        // wall check
+        if (map[ny] && map[ny][nx] !== 1) {
+          // eat pellet
+          if (map[ny][nx] === 2) {
+            map[ny][nx] = 0;
+            setScore((s) => s + 10);
           }
+          return { ...prev, x: nx, y: ny };
         }
-        if (sc) setScore(s=>s+sc);
-        if (lv !== lives) setLives(lv);
-        return moved;
+        return prev;
       });
-    }, GHOST_MS);
-    return () => clearInterval(id);
-    // eslint-disable-next-line
-  }, [player, powered, lives, level, grid]);
+    }, 300);
 
-  // next level when dots finished
+    return () => clearInterval(interval);
+  }, [gameOver]);
+
+  // 🎨 Draw canvas
   useEffect(() => {
-    const left = grid.flat().some(c => c === "." || c === "o");
-    if (!left) {
-      const next = (level + 1) % maps20.length;
-      setLevel(next);
-      const nm = maps20[next].map(r=>r.split(""));
-      setGrid(nm);
-      const p = findPositions(nm);
-      setPlayer(p.player);
-      setGhosts(p.ghosts);
-      // small bonus
-      setScore(s=>s+500);
-      setPowered(false);
-      setQueuedDir(null);
-    }
-    // eslint-disable-next-line
-  }, [grid]);
+    const ctx = canvasRef.current.getContext("2d");
+    ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
 
-  // update high score
+    // draw map
+    map.forEach((row, y) => {
+      row.forEach((cell, x) => {
+        if (cell === 1) {
+          ctx.fillStyle = "blue";
+          ctx.fillRect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+        } else if (cell === 2) {
+          ctx.fillStyle = "yellow";
+          ctx.beginPath();
+          ctx.arc(
+            x * TILE_SIZE + TILE_SIZE / 2,
+            y * TILE_SIZE + TILE_SIZE / 2,
+            4,
+            0,
+            2 * Math.PI
+          );
+          ctx.fill();
+        }
+      });
+    });
+
+    // draw pacman
+    ctx.fillStyle = "yellow";
+    ctx.beginPath();
+    ctx.arc(
+      pacman.x * TILE_SIZE + TILE_SIZE / 2,
+      pacman.y * TILE_SIZE + TILE_SIZE / 2,
+      TILE_SIZE / 2,
+      0,
+      2 * Math.PI
+    );
+    ctx.fill();
+  }, [pacman, score]);
+
+  // 🏆 Game Over handling
   useEffect(() => {
-    const hs = Number(localStorage.getItem("pacman_highscore") || 0);
-    if (score > hs) {
-      localStorage.setItem("pacman_highscore", String(score));
-      onHighScore?.(score);
+    if (score >= 200) { // simple end condition
+      setGameOver(true);
+      saveScore(playerName, score).then(() => {
+        getLeaderboard().then(setLeaderboard);
+      });
     }
-  }, [score, onHighScore]);
-
-  // touch handlers
-  const onTouchStart = (e) => {
-    const t = e.changedTouches[0];
-    touchStart.current = {x: t.clientX, y: t.clientY};
-  };
-  const onTouchEnd = (e) => {
-    const t = e.changedTouches[0];
-    const dx = t.clientX - touchStart.current.x;
-    const dy = t.clientY - touchStart.current.y;
-    if (Math.abs(dx) < 20 && Math.abs(dy) < 20) return; // tap ignore
-    if (Math.abs(dx) > Math.abs(dy)) {
-      setQueuedDir(dx > 0 ? "right" : "left");
-    } else {
-      setQueuedDir(dy > 0 ? "down" : "up");
-    }
-  };
-
-  // UI helpers
-  const setDir = (d) => setQueuedDir(d);
-  const powerSeconds = Math.ceil(powerLeft/100) / 10;
-
-  const cellSize = "min(6vw, 28px)"; // responsive cell size
+  }, [score, playerName]);
 
   return (
-    <div className="game" onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
-      <header className="hud">
-        <span>❤️ {lives}</span>
-        <span>⭐ {score}</span>
-        <span>🗺️ {level+1}/{maps20.length}</span>
-        {powered && <span>⚡ {powerSeconds.toFixed(1)}s</span>}
-      </header>
+    <div className="flex flex-col items-center p-4 text-center">
+      <h1 className="text-2xl font-bold">Pacman 🟡</h1>
+      <p className="mb-2">Score: {score}</p>
 
-      <div
-        className="grid"
-        style={{
-          gridTemplateColumns: `repeat(${width}, ${cellSize})`,
-          gridTemplateRows: `repeat(${height}, ${cellSize})`
-        }}
-      >
-        {grid.map((row,y)=>
-          row.map((c,x)=>{
-            const key = `${x}-${y}`;
-            // player / ghosts
-            if (player.x===x && player.y===y) {
-              return <div key={key} className={`cell pac ${powered?'pow':''}`}/>;
-            }
-            const ghostHere = ghosts.find(g=>g.x===x && g.y===y);
-            if (ghostHere) {
-              return <div key={key} className={`cell ghost ${powered?'scared':''}`}/>;
-            }
-            if (c==="W") return <div key={key} className="cell wall"/>;
-            if (c===".") return <div key={key} className="cell dot"/>;
-            if (c==="o") return <div key={key} className="cell potion"/>;
-            return <div key={key} className="cell"/>;
-          })
-        )}
-      </div>
+      {!gameOver && (
+        <canvas
+          ref={canvasRef}
+          width={map[0].length * TILE_SIZE}
+          height={map.length * TILE_SIZE}
+          className="border border-gray-400"
+        />
+      )}
 
-      <div className="controls">
-        <button onClick={()=>setDir("up")} aria-label="Up">⬆️</button>
-        <div className="row">
-          <button onClick={()=>setDir("left")} aria-label="Left">⬅️</button>
-          <button onClick={()=>setDir("down")} aria-label="Down">⬇️</button>
-          <button onClick={()=>setDir("right")} aria-label="Right">➡️</button>
+      {gameOver && (
+        <div className="mt-4">
+          <h2 className="text-xl font-bold">🎉 Game Over!</h2>
+          <p>Your Score: {score}</p>
+
+          <h3 className="mt-4 text-lg font-semibold">🏆 Leaderboard</h3>
+          <ul className="mt-2">
+            {leaderboard.map((entry, i) => (
+              <li key={i}>
+                {i + 1}. {entry.name} — {entry.score}
+              </li>
+            ))}
+          </ul>
         </div>
-        <div className="toolbar">
-          <button onClick={()=>{
-            onExit?.();
-          }}>🏠 Menu</button>
-          <button onClick={()=>{
-            // soft reset level
-            const nm = maps20[level].map(r=>r.split(""));
-            setGrid(nm);
-            const p = findPositions(nm);
-            setPlayer(p.player);
-            setGhosts(p.ghosts);
-            setPowered(false);
-            setQueuedDir(null);
-          }}>🔁 Reset Level</button>
-        </div>
+      )}
+
+      <div className="mt-4">
+        <input
+          type="text"
+          value={playerName}
+          onChange={(e) => setPlayerName(e.target.value)}
+          className="border px-2 py-1 rounded"
+          placeholder="Enter your name"
+        />
       </div>
     </div>
   );
