@@ -1,1 +1,87 @@
-.
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+
+body {
+  background: radial-gradient(circle, #000 60%, #111);
+  font-family: 'Press Start 2P', cursive;
+  color: white;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+}
+
+.game {
+  text-align: center;
+}
+
+.hud {
+  display: flex;
+  justify-content: space-around;
+  margin-bottom: 10px;
+  font-size: 12px;
+  text-shadow: 0 0 5px yellow;
+}
+
+.grid {
+  display: grid;
+  margin: 20px auto;
+  box-shadow: 0 0 20px cyan;
+  border-radius: 8px;
+}
+
+.cell {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.cell img {
+  max-width: 90%;
+  max-height: 90%;
+}
+
+.wall {
+  background: linear-gradient(145deg, #001a66, #000066);
+  border: 1px solid #00f;
+}
+
+.dot {
+  background: yellow;
+  border-radius: 50%;
+  width: 6px;
+  height: 6px;
+  margin: auto;
+}
+
+.pacman {
+  animation: mouth 0.3s infinite alternate;
+}
+
+@keyframes mouth {
+  0% { transform: scale(1) rotate(0deg); }
+  100% { transform: scale(1.1) rotate(10deg); }
+}
+
+.ghost {
+  transition: filter 0.3s;
+}
+
+.controls {
+  margin-top: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: center;
+}
+
+.controls button {
+  font-size: 2rem;
+  background: #222;
+  color: white;
+  border: 2px solid #555;
+  padding: 15px;
+  border-radius: 15px;
+  box-shadow: 0 0 10px #0ff;
+}
