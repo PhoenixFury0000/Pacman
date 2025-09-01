@@ -12,23 +12,59 @@
 }
 
 * { box-sizing: border-box; }
-html, body, #root { height: 100%; }
+html, body, #root { height: 100%; margin: 0; padding: 0; }
 body {
-  margin: 0;
   background: radial-gradient(circle at center, var(--bg2) 0%, var(--bg1) 60%);
   color: #fff;
   font-family: 'Press Start 2P', system-ui, -apple-system, sans-serif;
+  overflow: hidden;
+  touch-action: manipulation;
 }
 
-.app, .menu, .game { display: flex; flex-direction: column; align-items: center; }
+.app, .menu, .game { 
+  display: flex; 
+  flex-direction: column; 
+  align-items: center; 
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+}
 
-.menu { padding: 32px 16px; gap: 16px; }
-.menu h1 { margin: 8px 0 0; font-size: 24px; text-shadow: 0 0 8px #0ff; }
-.menu .sub { opacity: 0.8; font-size: 12px; }
-.menu .high { font-size: 14px; margin-top: 4px; }
+.menu { 
+  padding: 32px 16px; 
+  gap: 16px; 
+  text-align: center;
+}
+.menu h1 { 
+  margin: 8px 0 0; 
+  font-size: 24px; 
+  text-shadow: 0 0 8px #0ff; 
+  color: #ffd740;
+}
+.menu .sub { 
+  opacity: 0.8; 
+  font-size: 12px; 
+  margin: 8px 0;
+}
+.menu .high { 
+  font-size: 14px; 
+  margin-top: 16px; 
+  color: #ffd740;
+}
 button.primary {
-  font: inherit; padding: 12px 18px; border-radius: 12px; border: 2px solid #0ff;
-  background: #051b30; color: #0ff; box-shadow: 0 0 12px #0ff66a inset, 0 0 8px #0ff;
+  font: inherit; 
+  padding: 12px 18px; 
+  border-radius: 12px; 
+  border: 2px solid #0ff;
+  background: #051b30; 
+  color: #0ff; 
+  box-shadow: 0 0 12px #0ff66a inset, 0 0 8px #0ff;
+  margin-top: 16px;
+  cursor: pointer;
+}
+button.primary:active {
+  transform: scale(0.95);
+  box-shadow: 0 0 6px #0ff66a inset, 0 0 4px #0ff;
 }
 
 .hud {
@@ -68,7 +104,8 @@ button.primary {
 }
 .dot::after {
   content: "";
-  position: absolute; inset: 0;
+  position: absolute; 
+  inset: 0;
   margin: auto;
   width: 22%;
   height: 22%;
@@ -81,9 +118,11 @@ button.primary {
 }
 .potion::after {
   content: "";
-  position: absolute; inset: 0;
+  position: absolute; 
+  inset: 0;
   margin: auto;
-  width: 60%; height: 60%;
+  width: 60%; 
+  height: 60%;
   border-radius: 6px 6px 12px 12px;
   background:
     radial-gradient(circle at 50% 40%, #fff8 0 35%, #0000 36%),
@@ -104,7 +143,9 @@ button.primary {
   background: conic-gradient(from 20deg, var(--pacPower) 0 160deg, #0000 160deg 200deg, var(--pacPower) 200deg 360deg);
   box-shadow: 0 0 12px #7cffd988;
 }
-@keyframes chew { to { transform: rotate(6deg); } }
+@keyframes chew { 
+  to { transform: rotate(6deg); } 
+}
 
 .ghost {
   position: relative;
@@ -114,28 +155,144 @@ button.primary {
 }
 .ghost::after {
   content: "";
-  position: absolute; left: 50%; top: 38%;
-  width: 40%; height: 22%; transform: translateX(-50%);
+  position: absolute; 
+  left: 50%; 
+  top: 38%;
+  width: 40%; 
+  height: 22%; 
+  transform: translateX(-50%);
   background:
     radial-gradient(circle at 30% 50%, #fff 0 45%, #0000 46%),
     radial-gradient(circle at 70% 50%, #fff 0 45%, #0000 46%);
 }
-.ghost.scared { background: var(--ghostScared); box-shadow: 0 0 10px #66a3ff88; }
+.ghost.scared { 
+  background: var(--ghostScared); 
+  box-shadow: 0 0 10px #66a3ff88; 
+  animation: scared 0.5s infinite alternate;
+}
+@keyframes scared {
+  from { opacity: 1; }
+  to { opacity: 0.7; }
+}
 
 .controls {
-  display: flex; flex-direction: column; align-items: center; gap: 10px; margin-bottom: 16px;
+  display: flex; 
+  flex-direction: column; 
+  align-items: center; 
+  gap: 10px; 
+  margin: 16px 0;
+  width: 100%;
 }
-.controls .row { display: flex; gap: 10px; }
+.controls .row { 
+  display: flex; 
+  gap: 10px; 
+}
 .controls button {
-  font: inherit; font-size: 22px;
-  width: 64px; height: 64px; border-radius: 16px;
-  border: 2px solid #57e6ff; color: #cfffff;
+  font: inherit; 
+  font-size: 22px;
+  width: 64px; 
+  height: 64px; 
+  border-radius: 16px;
+  border: 2px solid #57e6ff; 
+  color: #cfffff;
   background: #0a2338;
   box-shadow: 0 0 10px #00e5ff88, inset 0 0 10px #003b5e;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  touch-action: manipulation;
+}
+.controls button:active {
+  transform: scale(0.9);
+  box-shadow: 0 0 5px #00e5ff88, inset 0 0 5px #003b5e;
 }
 .controls .toolbar {
-  margin-top: 6px; display:flex; gap: 10px;
+  margin-top: 6px; 
+  display:flex; 
+  gap: 10px;
 }
 .controls .toolbar button {
-  width: auto; height: 44px; padding: 0 14px; font-size: 14px;
+  width: auto; 
+  height: 44px; 
+  padding: 0 14px; 
+  font-size: 14px;
+}
+
+.game-container {
+  position: relative;
+  width: 100%;
+  max-width: 500px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.game-board {
+  position: relative;
+  width: 100%;
+  margin-bottom: 16px;
+}
+
+.leaderboard {
+  margin-top: 16px;
+  padding: 12px;
+  background: rgba(0, 0, 0, 0.5);
+  border-radius: 8px;
+  max-height: 200px;
+  overflow-y: auto;
+  width: 100%;
+}
+
+.leaderboard-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 4px 0;
+  border-bottom: 1px solid #333;
+}
+
+.leaderboard-item:last-child {
+  border-bottom: none;
+}
+
+.name-input {
+  background: rgba(0, 0, 0, 0.5);
+  border: 2px solid #57e6ff;
+  border-radius: 8px;
+  color: white;
+  padding: 8px 12px;
+  font-family: 'Press Start 2P', cursive;
+  font-size: 12px;
+  margin-top: 8px;
+  width: 180px;
+  text-align: center;
+}
+
+.swipe-area {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 70%;
+  z-index: 10;
+}
+
+@media (max-height: 700px) {
+  .menu h1 { font-size: 20px; }
+  .menu .sub { font-size: 10px; }
+  .controls button {
+    width: 56px;
+    height: 56px;
+    font-size: 18px;
+  }
+}
+
+/* Animation for game start */
+@keyframes fadeIn {
+  from { opacity: 0; transform: scale(0.9); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.menu, .game-container {
+  animation: fadeIn 0.5s ease-out;
 }
