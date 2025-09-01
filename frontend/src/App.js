@@ -10,6 +10,13 @@ export default function App() {
     setHighScore(hs);
   }, []);
 
+  const updateHighScore = (score) => {
+    if (score > highScore) {
+      setHighScore(score);
+      localStorage.setItem("pacman_highscore", score);
+    }
+  };
+
   return (
     <div className="app">
       {!started ? (
@@ -17,10 +24,15 @@ export default function App() {
           <h1>Pac-Man Mobile</h1>
           <p className="sub">Touch controls • Swipe to move</p>
           <p className="high">🏆 High Score: {highScore}</p>
-          <button className="primary" onClick={() => setStarted(true)}>Start</button>
+          <button className="primary" onClick={() => setStarted(true)}>
+            Start Game
+          </button>
         </div>
       ) : (
-        <Game onExit={() => setStarted(false)} onHighScore={(hs)=>setHighScore(hs)} />
+        <Game 
+          onExit={() => setStarted(false)} 
+          onHighScore={updateHighScore} 
+        />
       )}
     </div>
   );
