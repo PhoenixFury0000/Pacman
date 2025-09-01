@@ -1,87 +1,141 @@
-@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
-
-body {
-  background: radial-gradient(circle, #000 60%, #111);
-  font-family: 'Press Start 2P', cursive;
-  color: white;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  min-height: 100vh;
+:root {
+  --bg1: #000;
+  --bg2: #111;
+  --wall1: #03206b;
+  --wall2: #0a3dd9;
+  --dot: #ffd54a;
+  --potion: #ff7b54;
+  --pac: #ffd740;
+  --pacPower: #7cffd9;
+  --ghost: #ff4d6d;
+  --ghostScared: #66a3ff;
 }
 
-.game {
-  text-align: center;
+* { box-sizing: border-box; }
+html, body, #root { height: 100%; }
+body {
+  margin: 0;
+  background: radial-gradient(circle at center, var(--bg2) 0%, var(--bg1) 60%);
+  color: #fff;
+  font-family: 'Press Start 2P', system-ui, -apple-system, sans-serif;
+}
+
+.app, .menu, .game { display: flex; flex-direction: column; align-items: center; }
+
+.menu { padding: 32px 16px; gap: 16px; }
+.menu h1 { margin: 8px 0 0; font-size: 24px; text-shadow: 0 0 8px #0ff; }
+.menu .sub { opacity: 0.8; font-size: 12px; }
+.menu .high { font-size: 14px; margin-top: 4px; }
+button.primary {
+  font: inherit; padding: 12px 18px; border-radius: 12px; border: 2px solid #0ff;
+  background: #051b30; color: #0ff; box-shadow: 0 0 12px #0ff66a inset, 0 0 8px #0ff;
 }
 
 .hud {
+  width: 100%;
+  max-width: 540px;
   display: flex;
   justify-content: space-around;
-  margin-bottom: 10px;
+  padding: 10px 8px;
   font-size: 12px;
-  text-shadow: 0 0 5px yellow;
+  text-shadow: 0 0 6px #ffd54a;
 }
 
 .grid {
   display: grid;
-  margin: 20px auto;
-  box-shadow: 0 0 20px cyan;
-  border-radius: 8px;
+  gap: 2px;
+  padding: 10px;
+  margin: 8px 0 12px;
+  background: rgba(0,0,0,0.35);
+  border-radius: 12px;
+  box-shadow: 0 0 16px #00e5ff88;
 }
 
 .cell {
-  width: 24px;
-  height: 24px;
-  display: flex;
-  justify-content: center;
-  align-items: center;
+  width: 100%;
+  height: 100%;
+  border-radius: 4px;
 }
 
-.cell img {
-  max-width: 90%;
-  max-height: 90%;
-}
-
+/* Tiles */
 .wall {
-  background: linear-gradient(145deg, #001a66, #000066);
-  border: 1px solid #00f;
+  background: linear-gradient(145deg, var(--wall2), var(--wall1));
+  border: 1px solid #0cf;
+  box-shadow: inset 0 0 6px #00a7ff;
 }
-
 .dot {
-  background: yellow;
-  border-radius: 50%;
-  width: 6px;
-  height: 6px;
+  position: relative;
+}
+.dot::after {
+  content: "";
+  position: absolute; inset: 0;
   margin: auto;
+  width: 22%;
+  height: 22%;
+  border-radius: 999px;
+  background: var(--dot);
+  box-shadow: 0 0 10px var(--dot);
+}
+.potion {
+  position: relative;
+}
+.potion::after {
+  content: "";
+  position: absolute; inset: 0;
+  margin: auto;
+  width: 60%; height: 60%;
+  border-radius: 6px 6px 12px 12px;
+  background:
+    radial-gradient(circle at 50% 40%, #fff8 0 35%, #0000 36%),
+    var(--potion);
+  box-shadow: 0 0 10px var(--potion), inset 0 -6px 10px #0005;
+  border: 2px solid #ffb199;
 }
 
-.pacman {
-  animation: mouth 0.3s infinite alternate;
+/* Pac-Man + Ghosts as CSS shapes */
+.pac {
+  position: relative;
+  background: conic-gradient(from 20deg, var(--pac) 0 160deg, #0000 160deg 200deg, var(--pac) 200deg 360deg);
+  border-radius: 999px;
+  animation: chew .24s infinite alternate ease-in-out;
+  box-shadow: 0 0 10px #ffd74088;
 }
-
-@keyframes mouth {
-  0% { transform: scale(1) rotate(0deg); }
-  100% { transform: scale(1.1) rotate(10deg); }
+.pac.pow {
+  background: conic-gradient(from 20deg, var(--pacPower) 0 160deg, #0000 160deg 200deg, var(--pacPower) 200deg 360deg);
+  box-shadow: 0 0 12px #7cffd988;
 }
+@keyframes chew { to { transform: rotate(6deg); } }
 
 .ghost {
-  transition: filter 0.3s;
+  position: relative;
+  background: var(--ghost);
+  border-radius: 60% 60% 12% 12%;
+  box-shadow: 0 0 10px #ff4d6d88;
 }
+.ghost::after {
+  content: "";
+  position: absolute; left: 50%; top: 38%;
+  width: 40%; height: 22%; transform: translateX(-50%);
+  background:
+    radial-gradient(circle at 30% 50%, #fff 0 45%, #0000 46%),
+    radial-gradient(circle at 70% 50%, #fff 0 45%, #0000 46%);
+}
+.ghost.scared { background: var(--ghostScared); box-shadow: 0 0 10px #66a3ff88; }
 
 .controls {
-  margin-top: 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  align-items: center;
+  display: flex; flex-direction: column; align-items: center; gap: 10px; margin-bottom: 16px;
 }
-
+.controls .row { display: flex; gap: 10px; }
 .controls button {
-  font-size: 2rem;
-  background: #222;
-  color: white;
-  border: 2px solid #555;
-  padding: 15px;
-  border-radius: 15px;
-  box-shadow: 0 0 10px #0ff;
+  font: inherit; font-size: 22px;
+  width: 64px; height: 64px; border-radius: 16px;
+  border: 2px solid #57e6ff; color: #cfffff;
+  background: #0a2338;
+  box-shadow: 0 0 10px #00e5ff88, inset 0 0 10px #003b5e;
+}
+.controls .toolbar {
+  margin-top: 6px; display:flex; gap: 10px;
+}
+.controls .toolbar button {
+  width: auto; height: 44px; padding: 0 14px; font-size: 14px;
 }
