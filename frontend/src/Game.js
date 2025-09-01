@@ -1,7 +1,9 @@
 import React, { useEffect, useRef, useState, useCallback } from "react";
 
 // 🎮 Tile size and map setup
-const TILE_SIZE = 24;
+const TILE_SIZE = 20;
+const CANVAS_WIDTH = 15 * TILE_SIZE;
+const CANVAS_HEIGHT = 15 * TILE_SIZE;
 
 // Simple map: 0 = empty, 1 = wall, 2 = pellet, 3 = power pellet
 const map = [
@@ -132,7 +134,11 @@ async function saveScore(name, score) {
       body: JSON.stringify({ name, score }),
     });
   } catch (error) {
-    console.error("Failed to save score:", error);
+    console.log("Score saved locally (API not available)");
+    // Save to local storage if API is not available
+    const scores = JSON.parse(localStorage.getItem("pacman_scores") || "[]");
+    scores.push({ name, score, date: new Date().toISOString() });
+    localStorage.setItem("pacman_scores", JSON.stringify(scores));
   }
 }
 
@@ -141,8 +147,10 @@ async function getLeaderboard() {
     const res = await fetch("https://pacman-2.onrender.com/leaderboard");
     return await res.json();
   } catch (error) {
-    console.error("Failed to fetch leaderboard:", error);
-    return [];
+    console.log("Using local scores (API not available)");
+    // Use local scores if API is not available
+    const scores = JSON.parse(localStorage.getItem("pacman_scores") || "[]");
+    return scores.sort((a, b) => b.score - a.score).slice(0, 5);
   }
 }
 
@@ -156,10 +164,10 @@ export default function Game({ onExit, onHighScore }) {
   const [leaderboard, setLeaderboard] = useState([]);
   const [playerName, setPlayerName] = useState("Player");
   const [ghosts, setGhosts] = useState([
-    new Ghost(7, 5, "red", 3),
-    new Ghost(8, 5, "pink", 4),
-    new Ghost(7, 6, "cyan", 5),
-    new Ghost(8, 6, "orange", 6),
+    new Ghost(7, 5, "#ff4d6d", 3),
+    new Ghost(8, 5, "#ff8fa3", 4),
+    new Ghost(7, 6, "#ffb3c1", 5),
+    new Ghost(8, 6, "#ffccd5", 6),
   ]);
   const [powerTimer, setPowerTimer] = useState(0);
   const [pellets, setPellets] = useState(0);
@@ -177,41 +185,51 @@ export default function Game({ onExit, onHighScore }) {
 
   // 🎮 Touch controls
   useEffect(() => {
-    const handleSwipe = (e) => {
-      const { clientX, clientY } = e.changedTouches[0];
-      const startX = e.changedTouches[0].pageX;
-      const startY = e.changedTouches[0].pageY;
-      const endX = clientX;
-      const endY = clientY;
+    let startX, startY;
+
+    const handleTouchStart = (e) => {
+      const touch = e.touches[0];
+      startX = touch.clientX;
+      startY = touch.clientY;
+    };
+
+    const handleTouchEnd = (e) => {
+      if (!startX || !startY) return;
+
+      const touch = e.changedTouches[0];
+      const endX = touch.clientX;
+      const endY = touch.clientY;
       
       const dx = endX - startX;
       const dy = endY - startY;
       
       // Determine direction based on the largest change
       if (Math.abs(dx) > Math.abs(dy)) {
-        if (dx > 0) {
+        if (dx > 15) {
           setPacman((p) => ({ ...p, dir: "RIGHT" }));
-        } else {
+        } else if (dx < -15) {
           setPacman((p) => ({ ...p, dir: "LEFT" }));
         }
       } else {
-        if (dy > 0) {
+        if (dy > 15) {
           setPacman((p) => ({ ...p, dir: "DOWN" }));
-        } else {
+        } else if (dy < -15) {
           setPacman((p) => ({ ...p, dir: "UP" }));
         }
       }
+
+      // Reset touch positions
+      startX = null;
+      startY = null;
     };
 
-    window.addEventListener("touchstart", (e) => {
-      // Store initial touch position
-      const touch = e.touches[0];
-      touch.startX = touch.pageX;
-      touch.startY = touch.pageY;
-    });
+    window.addEventListener("touchstart", handleTouchStart);
+    window.addEventListener("touchend", handleTouchEnd);
     
-    window.addEventListener("touchend", handleSwipe);
-    return () => window.removeEventListener("touchend", handleSwipe);
+    return () => {
+      window.removeEventListener("touchstart", handleTouchStart);
+      window.removeEventListener("touchend", handleTouchEnd);
+    };
   }, []);
 
   // Handle button controls
@@ -304,40 +322,51 @@ export default function Game({ onExit, onHighScore }) {
           return newGhost;
         });
       });
-    }, 200);
+    }, 250);
 
     return () => clearInterval(interval);
   }, [gameOver, gameWin, pellets, pacman]);
 
   // 🎨 Draw canvas
   useEffect(() => {
-    const ctx = canvasRef.current.getContext("2d");
-    ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    
+    const ctx = canvas.getContext("2d");
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     // Draw map
     map.forEach((row, y) => {
       row.forEach((cell, x) => {
         if (cell === 1) {
-          ctx.fillStyle = "blue";
+          // Draw walls
+          ctx.fillStyle = "#0f3460";
           ctx.fillRect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+          
+          // Add wall details
+          ctx.strokeStyle = "#0d2857";
+          ctx.lineWidth = 1;
+          ctx.strokeRect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
         } else if (cell === 2) {
-          ctx.fillStyle = "yellow";
+          // Draw pellets
+          ctx.fillStyle = "#ffd54a";
           ctx.beginPath();
           ctx.arc(
             x * TILE_SIZE + TILE_SIZE / 2,
             y * TILE_SIZE + TILE_SIZE / 2,
-            4,
+            TILE_SIZE / 6,
             0,
             2 * Math.PI
           );
           ctx.fill();
         } else if (cell === 3) {
-          ctx.fillStyle = "white";
+          // Draw power pellets
+          ctx.fillStyle = "#e94560";
           ctx.beginPath();
           ctx.arc(
             x * TILE_SIZE + TILE_SIZE / 2,
             y * TILE_SIZE + TILE_SIZE / 2,
-            8,
+            TILE_SIZE / 4,
             0,
             2 * Math.PI
           );
@@ -348,12 +377,70 @@ export default function Game({ onExit, onHighScore }) {
 
     // Draw ghosts
     ghosts.forEach(ghost => {
-      ctx.fillStyle = ghost.scared ? "blue" : ghost.color;
+      if (ghost.scared) {
+        ctx.fillStyle = "#4361ee";
+      } else {
+        ctx.fillStyle = ghost.color;
+      }
+      
+      // Draw ghost body
       ctx.beginPath();
       ctx.arc(
         ghost.x * TILE_SIZE + TILE_SIZE / 2,
         ghost.y * TILE_SIZE + TILE_SIZE / 2,
         TILE_SIZE / 2,
+        Math.PI,
+        0,
+        false
+      );
+      ctx.lineTo(
+        ghost.x * TILE_SIZE + TILE_SIZE,
+        ghost.y * TILE_SIZE + TILE_SIZE
+      );
+      ctx.lineTo(
+        ghost.x * TILE_SIZE,
+        ghost.y * TILE_SIZE + TILE_SIZE
+      );
+      ctx.closePath();
+      ctx.fill();
+      
+      // Draw ghost eyes
+      ctx.fillStyle = "white";
+      ctx.beginPath();
+      ctx.arc(
+        ghost.x * TILE_SIZE + TILE_SIZE / 3,
+        ghost.y * TILE_SIZE + TILE_SIZE / 2,
+        TILE_SIZE / 6,
+        0,
+        2 * Math.PI
+      );
+      ctx.arc(
+        ghost.x * TILE_SIZE + 2 * TILE_SIZE / 3,
+        ghost.y * TILE_SIZE + TILE_SIZE / 2,
+        TILE_SIZE / 6,
+        0,
+        2 * Math.PI
+      );
+      ctx.fill();
+      
+      // Draw ghost pupils
+      ctx.fillStyle = "black";
+      let pupilOffsetX = 0;
+      if (ghost.direction === "LEFT") pupilOffsetX = -2;
+      else if (ghost.direction === "RIGHT") pupilOffsetX = 2;
+      
+      ctx.beginPath();
+      ctx.arc(
+        ghost.x * TILE_SIZE + TILE_SIZE / 3 + pupilOffsetX,
+        ghost.y * TILE_SIZE + TILE_SIZE / 2,
+        TILE_SIZE / 12,
+        0,
+        2 * Math.PI
+      );
+      ctx.arc(
+        ghost.x * TILE_SIZE + 2 * TILE_SIZE / 3 + pupilOffsetX,
+        ghost.y * TILE_SIZE + TILE_SIZE / 2,
+        TILE_SIZE / 12,
         0,
         2 * Math.PI
       );
@@ -361,8 +448,7 @@ export default function Game({ onExit, onHighScore }) {
     });
 
     // Draw pacman
-    ctx.fillStyle = pacman.power ? "#7cffd9" : "yellow";
-    ctx.beginPath();
+    ctx.fillStyle = pacman.power ? "#7cffd9" : "#ffd740";
     
     // Create Pac-Man mouth based on direction
     let startAngle, endAngle;
@@ -388,6 +474,7 @@ export default function Game({ onExit, onHighScore }) {
         endAngle = 2 * Math.PI;
     }
     
+    ctx.beginPath();
     ctx.arc(
       pacman.x * TILE_SIZE + TILE_SIZE / 2,
       pacman.y * TILE_SIZE + TILE_SIZE / 2,
@@ -399,6 +486,7 @@ export default function Game({ onExit, onHighScore }) {
       pacman.x * TILE_SIZE + TILE_SIZE / 2,
       pacman.y * TILE_SIZE + TILE_SIZE / 2
     );
+    ctx.closePath();
     ctx.fill();
   }, [pacman, ghosts, score]);
 
@@ -418,23 +506,22 @@ export default function Game({ onExit, onHighScore }) {
 
   return (
     <div className="game-container">
-      <h1>Pacman 🟡</h1>
+      <h1>PAC-MAN</h1>
       <div className="hud">
-        <div>Score: {score}</div>
-        <div>Lives: {"🍒".repeat(lives)}</div>
-        {pacman.power && <div>Power: {powerTimer}s</div>}
+        <div>SCORE: {score}</div>
+        <div className="lives">
+          LIVES: <span className="life">{"🍒".repeat(lives)}</span>
+        </div>
+        {pacman.power && <div className="power-timer">POWER: {powerTimer}s</div>}
       </div>
 
       <div className="game-board">
-        {!gameOver && !gameWin && (
-          <canvas
-            ref={canvasRef}
-            width={map[0].length * TILE_SIZE}
-            height={map.length * TILE_SIZE}
-            className="border border-gray-400"
-          />
-        )}
-
+        <canvas
+          ref={canvasRef}
+          width={CANVAS_WIDTH}
+          height={CANVAS_HEIGHT}
+        />
+        
         {/* Touch area for swipe controls */}
         <div className="swipe-area"></div>
       </div>
@@ -450,27 +537,28 @@ export default function Game({ onExit, onHighScore }) {
           <button onClick={() => handleDirectionChange("RIGHT")}>→</button>
         </div>
         <div className="toolbar">
-          <button onClick={onExit}>Exit</button>
-          <button onClick={() => window.location.reload()}>Restart</button>
+          <button onClick={onExit}>EXIT</button>
+          <button onClick={() => window.location.reload()}>RESTART</button>
         </div>
       </div>
 
       {(gameOver || gameWin) && (
-        <div className="mt-4">
-          <h2 className="text-xl font-bold">{gameWin ? "🎉 You Win!" : "Game Over"}</h2>
-          <p>Your Score: {score}</p>
+        <div className={gameWin ? "game-win" : "game-over"}>
+          <h2>{gameWin ? "🎉 YOU WIN!" : "GAME OVER"}</h2>
+          <p>YOUR SCORE: {score}</p>
 
-          <div className="mt-4">
+          <div>
             <input
               type="text"
               value={playerName}
               onChange={(e) => setPlayerName(e.target.value)}
               className="name-input"
-              placeholder="Enter your name"
+              placeholder="ENTER YOUR NAME"
+              maxLength={12}
             />
           </div>
 
-          <h3 className="mt-4 text-lg font-semibold">🏆 Leaderboard</h3>
+          <h3>🏆 LEADERBOARD</h3>
           <div className="leaderboard">
             {leaderboard.length > 0 ? (
               leaderboard.map((entry, i) => (
@@ -480,7 +568,7 @@ export default function Game({ onExit, onHighScore }) {
                 </div>
               ))
             ) : (
-              <p>Loading leaderboard...</p>
+              <p>LOADING...</p>
             )}
           </div>
         </div>
